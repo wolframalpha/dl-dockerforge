@@ -69,5 +69,5 @@ else
         --ServerApp.token='' \
         --ServerApp.password="${JUPYTER_HASHED_PASSWORD}" \
         --ServerApp.terminado_settings='{"shell_command": ["/bin/bash"]}' \
-        --notebook-dir=/workspace
+        --notebook-dir=/
 fi

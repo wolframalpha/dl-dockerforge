@@ -1,7 +1,7 @@
 # DL Toolkit — Local GPU Build (Windows/WSL2)
 
 > **Target**: CUDA 12.8 · RTX 4060 (SM 8.9) + A100 (SM 8.0) · Python 3.12  
-> **Build with**: Podman on Windows GPU laptop  
+> **Build with**: Docker on Windows GPU laptop  
 > **Key difference from Mac build**: ALL CUDA extensions compiled at build time — zero post-boot setup  
 > **Services**: JupyterLab + SSH (VS Code Remote) running simultaneously
 
@@ -11,7 +11,7 @@
 
 | Feature | `docker_local_mac` | `docker_local_gpu` |
 |---------|--------------------|--------------------|
-| Build host | Mac (Podman, no GPU) | Windows (Podman, with GPU) |
+| Build host | Mac (Podman, no GPU) | Windows (Docker, with GPU) |
 | Flash Attention | Download-only + post-boot script | ✅ Compiled at build time |
 | bitsandbytes | `BUILD_CUDA_EXT=0` (CPU) | ✅ Full CUDA build |
 | AutoGPTQ / AutoAWQ | `BUILD_CUDA_EXT=0` (CPU) | ✅ Full CUDA build |
@@ -44,18 +44,19 @@
 
 ## Prerequisites (Windows)
 
-### 1. Install Podman
+### 1. Install Docker Desktop
 
 ```powershell
-# Install Podman via winget
-winget install RedHat.Podman
+# Install Docker Desktop via winget
+winget install Docker.DockerDesktop
 
-# Initialize and start the Podman machine (allocate enough resources)
-podman machine init --cpus 4 --memory 8192 --disk-size 100
-podman machine start
+# After installation, launch Docker Desktop and ensure:
+#   - WSL 2 backend is enabled (Settings → General)
+#   - Allocate enough resources (Settings → Resources → Advanced)
+#     CPU: 4+, Memory: 8 GB+, Disk: 100 GB+
 ```
 
-> ⚠️ Set `--disk-size` to at least **100 GB** — the image is large.
+> ⚠️ Set disk image size to at least **100 GB** — the image is large.
 
 ### 2. Install NVIDIA drivers + CUDA 12.8
 
@@ -65,18 +66,18 @@ nvidia-smi
 # Update to latest Game Ready or Studio Driver from nvidia.com
 ```
 
-### 3. Verify GPU access in Podman
+### 3. Verify GPU access in Docker
 
 ```bash
 # In WSL2 terminal or PowerShell:
-podman run --rm --device nvidia.com/gpu=all nvidia/cuda:12.8.0-base-ubuntu22.04 nvidia-smi
+docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu22.04 nvidia-smi
 ```
 
 ---
 
 ## Quick Start
 
-### 1. Build the image (Podman on Windows)
+### 1. Build the image (Docker on Windows)
 
 ```bash
 chmod +x build.sh

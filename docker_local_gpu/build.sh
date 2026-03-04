@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# build.sh — Build & export the DL toolkit image using Podman (Windows/WSL2)
+# build.sh — Build & export the DL toolkit image using Docker (Windows/WSL2)
 # Usage:  ./build.sh [build|export|all]
 # =============================================================================
 set -euo pipefail
@@ -23,31 +23,31 @@ warn() { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 err()  { echo -e "${RED}[ERR]${NC}   $*" >&2; }
 ok()   { echo -e "${GREEN}[OK]${NC}    $*"; }
 
-# ── Check Podman is available ─────────────────────────────────────────────────
-check_podman() {
-    if ! command -v podman &>/dev/null; then
-        err "Podman is not installed."
-        err "On Windows: winget install RedHat.Podman"
-        err "On Linux:   sudo apt install podman"
+# ── Check Docker is available ─────────────────────────────────────────────────
+check_docker() {
+    if ! command -v docker &>/dev/null; then
+        err "Docker is not installed."
+        err "On Windows: Install Docker Desktop from https://www.docker.com/products/docker-desktop/"
+        err "On Linux:   sudo apt install docker.io  (or install Docker Engine)"
         exit 1
     fi
-    # Ensure podman machine is running
-    if ! podman machine info &>/dev/null 2>&1; then
-        warn "Podman machine may not be running. Starting it..."
-        podman machine start || true
+    # Ensure Docker daemon is running
+    if ! docker info &>/dev/null 2>&1; then
+        err "Docker daemon is not running. Please start Docker Desktop or the Docker service."
+        exit 1
     fi
 }
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 do_build() {
-    check_podman
+    check_docker
 
     log "Building image  ${IMAGE_NAME}:${IMAGE_TAG}  (native linux/amd64 with GPU)"
     log "GPU-accelerated build: all CUDA extensions compiled at build time"
     log "This will take a while (45-90+ min on first build)..."
     echo ""
 
-    podman build \
+    docker build \
         --tag "${IMAGE_NAME}:${IMAGE_TAG}" \
         -f "${SCRIPT_DIR}/Dockerfile" \
         "${SCRIPT_DIR}"
@@ -55,18 +55,17 @@ do_build() {
     ok "Image built:  ${IMAGE_NAME}:${IMAGE_TAG}"
     echo ""
     log "Quick test:"
-    echo "   podman run --rm --device nvidia.com/gpu=all ${IMAGE_NAME}:${IMAGE_TAG} python -c \"import torch; print(f'CUDA: {torch.cuda.is_available()}, GPUs: {torch.cuda.device_count()}')\""
+    echo "   docker run --rm --gpus all ${IMAGE_NAME}:${IMAGE_TAG} python -c \"import torch; print(f'CUDA: {torch.cuda.is_available()}, GPUs: {torch.cuda.device_count()}')\""
 }
 
 # ── Export ────────────────────────────────────────────────────────────────────
 do_export() {
-    check_podman
+    check_docker
 
-    log "Exporting image to  ${TAR_FILE}  (docker-archive format for Docker compatibility)..."
+    log "Exporting image to  ${TAR_FILE}..."
     log "This may take 10-20 min depending on image size."
 
-    # Use docker-archive format so the GPU server's Docker can load it
-    podman save --format docker-archive -o "${SCRIPT_DIR}/${TAR_FILE}" "${IMAGE_NAME}:${IMAGE_TAG}"
+    docker save -o "${SCRIPT_DIR}/${TAR_FILE}" "${IMAGE_NAME}:${IMAGE_TAG}"
 
     SIZE=$(du -h "${SCRIPT_DIR}/${TAR_FILE}" | cut -f1)
     ok "Exported:  ${TAR_FILE}  (${SIZE})"
@@ -92,8 +91,8 @@ case "${CMD}" in
     *)
         echo "Usage: $0 [build|export|all]"
         echo ""
-        echo "  build   — Build the Docker image with Podman (GPU-enabled)"
-        echo "  export  — Save image to .tar (docker-archive format)"
+        echo "  build   — Build the Docker image (GPU-enabled)"
+        echo "  export  — Save image to .tar"
         echo "  all     — Build + export (default)"
         exit 1
         ;;
